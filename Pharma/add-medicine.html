@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add Medicine - Pharmacy Management System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="styles.css" rel="stylesheet">
+    <style>
+        .navbar {
+            background-color: #007bff; /* Blue background color */
+        }
+        .navbar-brand, .nav-link {
+            color: white !important; /* White text color */
+        }
+        .navbar-brand:hover, .nav-link:hover {
+            color: #f8f9fa !important; /* Light gray on hover */
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container">
+            <a class="navbar-brand" href="index.html">Pharmacy Management System</a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="index.html">Dashboard</a>
+                <a class="nav-link" href="login.html">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h3>Add New Medicine</h3>
+            </div>
+            <div class="card-body">
+                <form id="addMedicineForm">
+                    <div class="mb-3">
+                        <label for="medicine-name" class="form-label">Medicine Name</label>
+                        <input type="text" class="form-control" id="medicine-name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="inventory-price" class="form-label">Inventory Price</label>
+                        <input type="number" step="0.01" class="form-control" id="inventory-price" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="sale-price" class="form-label">Sale Price</label>
+                        <input type="number" step="0.01" class="form-control" id="sale-price" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="medicine-stock" class="form-label">Initial Stock</label>
+                        <input type="number" class="form-control" id="medicine-stock" required>
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="prescription-needed">
+                        <label class="form-check-label" for="prescription-needed">Prescription Required</label>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Add Medicine</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('addMedicineForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+
+            const medicines = JSON.parse(localStorage.getItem('medicines')) || [];
+
+            const newMedicine = {
+                id: Date.now(),
+                name: document.getElementById('medicine-name').value,
+                inventoryPrice: parseFloat(document.getElementById('inventory-price').value),
+                salePrice: parseFloat(document.getElementById('sale-price').value),
+                stock: parseInt(document.getElementById('medicine-stock').value),
+                prescriptionNeeded: document.getElementById('prescription-needed').checked
+            };
+
+            medicines.push(newMedicine);
+            localStorage.setItem('medicines', JSON.stringify(medicines));
+
+            alert('Medicine added successfully!');
+            document.getElementById('addMedicineForm').reset();
+            window.location.href = 'index.html';
+        });
+    </script>
+</body>
+</html>
