@@ -1,0 +1,2040 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pharmacy Management System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            background-color: #e6f7ff;
+            padding-top: 20px;
+        }
+        .card {
+            margin-bottom: 20px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .navbar {
+            background-color: #007bff !important;
+        }
+        .navbar-brand, .nav-link {
+            color: white !important;
+        }
+        .dashboard-btn {
+            margin: 10px;
+            padding: 20px;
+            text-align: center;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .dashboard-btn:hover {
+            transform: translateY(-5px);
+            background-color: #f0f9ff;
+        }
+        .dashboard-icon {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+        #login-container {
+            max-width: 400px;
+            margin: 0 auto;
+            margin-top: 100px;
+        }
+        .hidden {
+            display: none;
+        }
+        .low-stock {
+            background-color: #ffcccc;
+        }
+        .profit-positive {
+            color: green;
+            font-weight: bold;
+        }
+        .profit-negative {
+            color: red;
+            font-weight: bold;
+        }
+        .stat-card {
+            text-align: center;
+            padding: 15px;
+        }
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <!-- Login Form -->
+    <div id="login-container" class="card">
+        <div class="card-header bg-primary text-white">
+            <h3 class="text-center">Pharmacy Management System</h3>
+        </div>
+        <div class="card-body">
+            <form id="login-form">
+                <div class="mb-3">
+                    <label for="username" class="form-label">Username</label>
+                    <input type="text" class="form-control" id="username" required>
+                </div>
+                <div class="mb-3">
+                    <label for="password" class="form-label">Password</label>
+                    <input type="password" class="form-control" id="password" required>
+                </div>
+                <button type="submit" class="btn btn-primary w-100">Login</button>
+            </form>
+            <div id="login-error" class="alert alert-danger mt-3 hidden"></div>
+        </div>
+    </div>
+
+    <!-- Main Application -->
+    <div id="app-container" class="container-fluid hidden">
+        <!-- Navigation -->
+        <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+            <div class="container-fluid">
+                <a class="navbar-brand" href="#">Pharmacy Management System</a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarNav">
+                    <ul class="navbar-nav ms-auto">
+                        <li class="nav-item">
+                            <span class="nav-link" id="user-role"></span>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" id="logout-btn">Logout</a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Dashboard -->
+        <div class="container mt-4">
+            <div class="row" id="dashboard-buttons">
+                <!-- Dynamic content based on permissions -->
+            </div>
+        </div>
+
+        <!-- Modal for different operations -->
+        <div class="modal fade" id="operationModal" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="operationModalLabel"></h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body" id="operationModalBody">
+                        <!-- Dynamic content based on operation -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Global variables
+        let currentUser = null;
+        let userPermissions = [];
+        let userRole = '';
+        const API_URL = 'http://localhost:5000/api';
+        let operationModal = null;
+
+        // Sample data for medicines and sales
+        let medicines = [
+            { id: 1, name: 'Paracetamol', inventoryPrice: 3.5, salePrice: 5.0, stock: 100, prescriptionNeeded: false },
+            { id: 2, name: 'Ibuprofen', inventoryPrice: 5.0, salePrice: 7.5, stock: 50, prescriptionNeeded: false },
+            { id: 3, name: 'Amoxicillin', inventoryPrice: 7.0, salePrice: 10.0, stock: 30, prescriptionNeeded: true }
+        ];
+        let sales = [];
+
+        // User data
+        const users = [
+            { username: 'admin', password: 'admin123', role: 'Administrator', permissions: ['add_medicine', 'update_stock', 'check_stock', 'generate_inventory_report', 'sell_medicine', 'view_sales_records', 'analyze_top_selling', 'calculate_statistics', 'manage_expiration', 'manage_suppliers', 'manage_prescriptions'] },
+            { username: 'staff', password: 'staff123', role: 'Staff', permissions: ['sell_medicine', 'add_medicine', 'update_stock', 'check_stock', 'generate_inventory_report', 'view_sales_records', 'manage_expiration', 'manage_prescriptions'] }
+        ];
+
+        // DOM Elements
+        const loginContainer = document.getElementById('login-container');
+        const appContainer = document.getElementById('app-container');
+        const loginForm = document.getElementById('login-form');
+        const loginError = document.getElementById('login-error');
+        const userRoleElement = document.getElementById('user-role');
+        const logoutBtn = document.getElementById('logout-btn');
+        const dashboardButtons = document.getElementById('dashboard-buttons');
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', () => {
+            // Setup modal
+            operationModal = new bootstrap.Modal(document.getElementById('operationModal'));
+            
+            // Event listeners
+            loginForm.addEventListener('submit', handleLogin);
+            logoutBtn.addEventListener('click', handleLogout);
+            
+            // Check if user is already logged in
+            checkSession();
+        });
+
+        // Authentication functions
+        async function handleLogin(event) {
+            event.preventDefault();
+            try {
+                const username = document.getElementById('username').value;
+                const password = document.getElementById('password').value;
+                
+                const user = users.find(u => u.username === username && u.password === password);
+                
+                if (user) {
+                    currentUser = username;
+                    userPermissions = user.permissions;
+                    userRole = user.role;
+                    showApp();
+                } else {
+                    showLoginError('Invalid username or password.');
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                showLoginError('An error occurred during login.');
+            }
+        }
+
+        async function handleLogout() {
+            currentUser = null;
+            userPermissions = [];
+            userRole = '';
+            showLogin();
+        }
+
+        async function checkSession() {
+            // In a real app, you would check if the session is still valid
+            // For this example, we'll just show the login screen
+            showLogin();
+        }
+
+        // UI functions
+        function showLogin() {
+            loginContainer.classList.remove('hidden');
+            appContainer.classList.add('hidden');
+            loginForm.reset();
+            loginError.classList.add('hidden');
+        }
+
+        function showApp() {
+            loginContainer.classList.add('hidden');
+            appContainer.classList.remove('hidden');
+            const user = users.find(u => u.username === currentUser);
+            userRoleElement.textContent = `Logged in as: ${user.role} (${currentUser})`;
+            
+            // Create dashboard buttons based on permissions
+            createDashboard();
+        }
+
+        function showLoginError(message) {
+            loginError.textContent = message;
+            loginError.classList.remove('hidden');
+        }
+
+        function createDashboard() {
+            dashboardButtons.innerHTML = '';
+            
+            const features = [
+                { id: 'add-medicine', permission: 'add_medicine', title: 'Add Medicine', icon: '💊' },
+                { id: 'update-stock', permission: 'update_stock', title: 'Update Stock', icon: '📦' },
+                { id: 'check-stock', permission: 'check_stock', title: 'Check Stock', icon: '🔍' },
+                { id: 'inventory-report', permission: 'generate_inventory_report', title: 'Inventory Report', icon: '📋' },
+                { id: 'sell-medicine', permission: 'sell_medicine', title: 'Sell Medicine', icon: '💰' },
+                { id: 'sales-records', permission: 'view_sales_records', title: 'Sales Records', icon: '📊' },
+                { id: 'top-selling', permission: 'analyze_top_selling', title: 'Top Selling Analysis', icon: '📈' },
+                { id: 'statistics', permission: 'calculate_statistics', title: 'Statistics', icon: '📉' },
+                { id: 'expiration-management', permission: 'manage_expiration', title: 'Expiration Management', icon: '📅' },
+                { id: 'supplier-management', permission: 'manage_suppliers', title: 'Supplier Management', icon: '🏢' },
+                { id: 'prescription-management', permission: 'manage_prescriptions', title: 'Prescription Management', icon: '📝' }
+            ];
+            
+            features.forEach(feature => {
+                if (userPermissions.includes(feature.permission)) {
+                    const col = document.createElement('div');
+                    col.className = 'col-md-3 mb-4';
+                    
+                    const button = document.createElement('div');
+                    button.className = 'card dashboard-btn';
+                    button.id = feature.id;
+                    button.innerHTML = `
+                        <div class="dashboard-icon">${feature.icon}</div>
+                        <div>${feature.title}</div>
+                    `;
+                    button.addEventListener('click', () => handleFeatureClick(feature.id));
+                    
+                    col.appendChild(button);
+                    dashboardButtons.appendChild(col);
+                }
+            });
+        }
+
+        // Helper functions
+        function downloadCSV(data, filename) {
+            const csvContent = data.map(e => Object.values(e).join(',')).join('\n');
+            const header = Object.keys(data[0]).join(',') + '\n';
+            const blob = new Blob([header + csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', filename);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+        
+        function formatDate(date) {
+            if (!date) return '';
+            if (typeof date === 'string') return date;
+            
+            return new Date(date).toLocaleString();
+        }
+
+        // Feature handlers
+        function handleFeatureClick(featureId) {
+            switch (featureId) {
+                case 'add-medicine':
+                    showAddMedicineForm();
+                    break;
+                case 'update-stock':
+                    showUpdateStockForm();
+                    break;
+                case 'check-stock':
+                    showCheckStockForm();
+                    break;
+                case 'inventory-report':
+                    showInventoryReport();
+                    break;
+                case 'sell-medicine':
+                    showSellMedicineForm();
+                    break;
+                case 'sales-records':
+                    showSalesRecords();
+                    break;
+                case 'top-selling':
+                    showTopSellingAnalysis();
+                    break;
+                case 'statistics':
+                    showStatistics();
+                    break;
+                case 'expiration-management':
+                    showExpirationManagement();
+                    break;
+                case 'supplier-management':
+                    showSupplierManagement();
+                    break;
+                case 'prescription-management':
+                    showPrescriptionManagement();
+                    break;
+            }
+        }
+
+        // Medicine operations
+        function showAddMedicineForm() {
+            const modalTitle = document.getElementById('operationModalLabel');
+            const modalBody = document.getElementById('operationModalBody');
+            
+            modalTitle.textContent = 'Add New Medicine';
+            modalBody.innerHTML = `
+                <form id="add-medicine-form">
+                    <div class="mb-3">
+                        <label for="medicine-name" class="form-label">Medicine Name</label>
+                        <input type="text" class="form-control" id="medicine-name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="inventory-price" class="form-label">Inventory Price</label>
+                        <input type="number" step="0.01" class="form-control" id="inventory-price" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="sale-price" class="form-label">Sale Price</label>
+                        <input type="number" step="0.01" class="form-control" id="sale-price" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="medicine-stock" class="form-label">Initial Stock</label>
+                        <input type="number" class="form-control" id="medicine-stock" required>
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="prescription-needed">
+                        <label class="form-check-label" for="prescription-needed">Prescription Required</label>
+                    </div>
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary">Add Medicine</button>
+                    </div>
+                    <div id="add-medicine-result" class="mt-3"></div>
+                </form>
+            `;
+            
+            const form = document.getElementById('add-medicine-form');
+            form.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const name = document.getElementById('medicine-name').value;
+                const inventoryPrice = parseFloat(document.getElementById('inventory-price').value);
+                const salePrice = parseFloat(document.getElementById('sale-price').value);
+                const stock = parseInt(document.getElementById('medicine-stock').value);
+                const prescriptionNeeded = document.getElementById('prescription-needed').checked;
+                
+                const newMedicine = {
+                    id: medicines.length + 1,
+                    name: name,
+                    inventoryPrice: inventoryPrice,
+                    salePrice: salePrice,
+                    stock: stock,
+                    prescriptionNeeded: prescriptionNeeded
+                };
+                medicines.push(newMedicine);
+                document.getElementById('add-medicine-result').innerHTML = `
+                    <div class="alert alert-success">Medicine added successfully!</div>
+                `;
+                form.reset();
+            });
+            
+            operationModal.show();
+        }
+
+        function showUpdateStockForm() {
+            const modalTitle = document.getElementById('operationModalLabel');
+            const modalBody = document.getElementById('operationModalBody');
+            
+            modalTitle.textContent = 'Update Medicine Stock';
+            modalBody.innerHTML = `
+                <form id="update-stock-form">
+                    <div class="mb-3">
+                        <label for="medicine-select" class="form-label">Select Medicine</label>
+                        <select class="form-select" id="medicine-select" required>
+                            <option value="">Loading medicines...</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="additional-stock" class="form-label">Additional Stock</label>
+                        <input type="number" class="form-control" id="additional-stock" required>
+                    </div>
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary">Update Stock</button>
+                    </div>
+                    <div id="update-stock-result" class="mt-3"></div>
+                </form>
+            `;
+            
+            const medicineSelect = document.getElementById('medicine-select');
+            medicineSelect.innerHTML = '';
+            medicines.forEach(medicine => {
+                const option = document.createElement('option');
+                option.value = medicine.id;
+                option.textContent = `${medicine.name} (Current Stock: ${medicine.stock})`;
+                medicineSelect.appendChild(option);
+            });
+            
+            const form = document.getElementById('update-stock-form');
+            form.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const medicineId = parseInt(medicineSelect.value);
+                const additionalStock = parseInt(document.getElementById('additional-stock').value);
+                
+                const medicine = medicines.find(m => m.id === medicineId);
+                if (medicine) {
+                    medicine.stock += additionalStock;
+                    document.getElementById('update-stock-result').innerHTML = `
+                        <div class="alert alert-success">Stock updated successfully! New stock: ${medicine.stock}</div>
+                    `;
+                    form.reset();
+                } else {
+                    document.getElementById('update-stock-result').innerHTML = `
+                        <div class="alert alert-danger">Medicine not found!</div>
+                    `;
+                }
+            });
+            
+            operationModal.show();
+        }
+
+        function showCheckStockForm() {
+            const modalTitle = document.getElementById('operationModalLabel');
+            const modalBody = document.getElementById('operationModalBody');
+            
+            modalTitle.textContent = 'Check Medicine Stock';
+            modalBody.innerHTML = `
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Medicine</th>
+                            <th>Stock</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="stock-list">
+                        <!-- Stock data will be populated here -->
+                    </tbody>
+                </table>
+            `;
+            
+            const stockList = document.getElementById('stock-list');
+            stockList.innerHTML = '';
+            medicines.forEach(medicine => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${medicine.name}</td>
+                    <td>${medicine.stock}</td>
+                    <td>${medicine.stock < 50 ? '<span class="text-danger">Low Stock</span>' : '<span class="text-success">In Stock</span>'}</td>
+                `;
+                if (medicine.stock < 50) {
+                    row.classList.add('low-stock');
+                }
+                stockList.appendChild(row);
+            });
+            
+            operationModal.show();
+        }
+
+        function showInventoryReport() {
+            const modalTitle = document.getElementById('operationModalLabel');
+            const modalBody = document.getElementById('operationModalBody');
+            
+            modalTitle.textContent = 'Inventory Report';
+            modalBody.innerHTML = `
+                <div class="d-flex justify-content-between mb-3">
+                    <h5>Current Inventory Status</h5>
+                    <button id="download-inventory" class="btn btn-success">Download as CSV</button>
+                </div>
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Medicine</th>
+                            <th>Inventory Price</th>
+                            <th>Sale Price</th>
+                            <th>Stock</th>
+                            <th>Total Value</th>
+                            <th>Prescription Required</th>
+                        </tr>
+                    </thead>
+                    <tbody id="inventory-list">
+                        <!-- Inventory data will be populated here -->
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <th colspan="4">Total Inventory Value:</th>
+                            <th id="total-inventory-value"></th>
+                            <th></th>
+                        </tr>
+                    </tfoot>
+                </table>
+            `;
+            
+            const inventoryList = document.getElementById('inventory-list');
+            let totalValue = 0;
+            
+            medicines.forEach(medicine => {
+                const medicineValue = medicine.inventoryPrice * medicine.stock;
+                totalValue += medicineValue;
+                
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${medicine.name}</td>
+                    <td>₹${medicine.inventoryPrice.toFixed(2)}</td>
+                    <td>₹${medicine.salePrice.toFixed(2)}</td>
+                    <td>${medicine.stock}</td>
+                    <td>₹${medicineValue.toFixed(2)}</td>
+                    <td>${medicine.prescriptionNeeded ? 'Yes' : 'No'}</td>
+                `;
+                inventoryList.appendChild(row);
+            });
+            
+            document.getElementById('total-inventory-value').textContent = `₹${totalValue.toFixed(2)}`;
+            
+            document.getElementById('download-inventory').addEventListener('click', () => {
+                const inventoryData = medicines.map(medicine => ({
+                    Name: medicine.name,
+                    'Inventory Price': medicine.inventoryPrice,
+                    'Sale Price': medicine.salePrice,
+                    Stock: medicine.stock,
+                    'Total Value': medicine.inventoryPrice * medicine.stock,
+                    'Prescription Required': medicine.prescriptionNeeded ? 'Yes' : 'No'
+                }));
+                
+                downloadCSV(inventoryData, 'inventory_report.csv');
+            });
+            
+            operationModal.show();
+        }
+
+        function showSellMedicineForm() {
+    const modalTitle = document.getElementById('operationModalLabel');
+    const modalBody = document.getElementById('operationModalBody');
+    
+    modalTitle.textContent = 'Sell Medicine';
+    modalBody.innerHTML = `
+        <form id="sell-medicine-form">
+            <div class="mb-3">
+                <label for="medicine-sale-select" class="form-label">Select Medicine</label>
+                <select class="form-select" id="medicine-sale-select" required>
+                    <option value="">Select a medicine...</option>
+                </select>
+            </div>
+            <div class="mb-3">
+                <label for="quantity" class="form-label">Quantity</label>
+                <input type="number" class="form-control" id="quantity" min="1" required>
+            </div>
+            <div class="mb-3">
+                <label for="customer-name" class="form-label">Customer Name</label>
+                <input type="text" class="form-control" id="customer-name" required>
+            </div>
+            <div class="mb-3 form-check" id="prescription-check-container" style="display:none;">
+                <input type="checkbox" class="form-check-input" id="has-prescription">
+                <label class="form-check-label" for="has-prescription">Customer has valid prescription</label>
+            </div>
+            <div class="mb-3">
+                <label for="total-price" class="form-label">Total Price</label>
+                <input type="text" class="form-control" id="total-price" readonly>
+            </div>
+            <div class="d-grid">
+                <button type="submit" class="btn btn-primary">Complete Sale</button>
+            </div>
+            <div id="sell-medicine-result" class="mt-3"></div>
+        </form>
+    `;
+    
+    const medicineSelect = document.getElementById('medicine-sale-select');
+    medicineSelect.innerHTML = '<option value="">Select a medicine...</option>';
+    medicines.forEach(medicine => {
+        if (medicine.stock > 0) {
+            const option = document.createElement('option');
+            option.value = medicine.id;
+            option.textContent = `${medicine.name} - ₹${medicine.salePrice.toFixed(2)} (Stock: ${medicine.stock})`;
+            option.dataset.price = medicine.salePrice;
+            option.dataset.prescription = medicine.prescriptionNeeded;
+            medicineSelect.appendChild(option);
+        }
+    });
+    
+    const quantityInput = document.getElementById('quantity');
+    const totalPriceInput = document.getElementById('total-price');
+    const prescriptionContainer = document.getElementById('prescription-check-container');
+    
+    medicineSelect.addEventListener('change', updateTotalAndPrescription);
+    quantityInput.addEventListener('change', updateTotalAndPrescription);
+    
+    function updateTotalAndPrescription() {
+        const selectedOption = medicineSelect.options[medicineSelect.selectedIndex];
+        if (selectedOption && selectedOption.value) {
+            const price = parseFloat(selectedOption.dataset.price);
+            const quantity = parseInt(quantityInput.value) || 0;
+            totalPriceInput.value = `₹${(price * quantity).toFixed(2)}`;
+            
+            if (selectedOption.dataset.prescription === 'true') {
+                prescriptionContainer.style.display = 'block';
+                document.getElementById('has-prescription').required = true;
+            } else {
+                prescriptionContainer.style.display = 'none';
+                document.getElementById('has-prescription').required = false;
+            }
+        } else {
+            totalPriceInput.value = '';
+            prescriptionContainer.style.display = 'none';
+            document.getElementById('has-prescription').required = false;
+        }
+    }
+    
+    const form = document.getElementById('sell-medicine-form');
+    form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const medicineId = parseInt(medicineSelect.value);
+        const quantity = parseInt(quantityInput.value);
+        const customerName = document.getElementById('customer-name').value;
+        
+        const medicine = medicines.find(m => m.id === medicineId);
+        if (!medicine) {
+            document.getElementById('sell-medicine-result').innerHTML = `
+                <div class="alert alert-danger">Medicine not found!</div>
+            `;
+            return;
+        }
+        
+        if (medicine.stock < quantity) {
+            document.getElementById('sell-medicine-result').innerHTML = `
+                <div class="alert alert-danger">Not enough stock available!</div>
+            `;
+            return;
+        }
+        
+        if (medicine.prescriptionNeeded && !document.getElementById('has-prescription').checked) {
+            document.getElementById('sell-medicine-result').innerHTML = `
+                <div class="alert alert-danger">Prescription is required for this medicine!</div>
+            `;
+            return;
+        }
+        
+        // Process the sale
+        medicine.stock -= quantity;
+        const totalPrice = medicine.salePrice * quantity;
+        const profit = (medicine.salePrice - medicine.inventoryPrice) * quantity;
+        
+        const sale = {
+            id: sales.length + 1,
+            medicineId: medicine.id,
+            medicineName: medicine.name,
+            quantity: quantity,
+            unitPrice: medicine.salePrice,
+            totalPrice: totalPrice,
+            profit: profit,
+            customerName: customerName,
+            date: new Date().toISOString()
+        };
+        
+        sales.push(sale);
+        
+        document.getElementById('sell-medicine-result').innerHTML = `
+            <div class="alert alert-success">
+                Sale completed successfully!<br>
+                Total: ₹${totalPrice.toFixed(2)}
+            </div>
+        `;
+        
+        form.reset();
+        totalPriceInput.value = '';
+        prescriptionContainer.style.display = 'none';
+    });
+    
+    operationModal.show();
+}
+
+        function showSalesRecords() {
+            const modalTitle = document.getElementById('operationModalLabel');
+            const modalBody = document.getElementById('operationModalBody');
+            
+            modalTitle.textContent = 'Sales Records';
+            modalBody.innerHTML = `
+                <div class="d-flex justify-content-between mb-3">
+                    <h5>Recent Sales</h5>
+                    <button id="download-sales" class="btn btn-success">Download as CSV</button>
+                </div>
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Medicine</th>
+                            <th>Customer</th>
+                            <th>Quantity</th>
+                            <th>Total Price</th>
+                            <th>Profit</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sales-list">
+                        <!-- Sales data will be populated here -->
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <th colspan="4">Total Sales:</th>
+                            <th id="total-sales"></th>
+                            <th id="total-profit"></th>
+                        </tr>
+                    </tfoot>
+                </table>
+            `;
+            
+            const salesList = document.getElementById('sales-list');
+            let totalSales = 0;
+            let totalProfit = 0;
+            
+            if (sales.length === 0) {
+                salesList.innerHTML = '<tr><td colspan="6" class="text-center">No sales records found.</td></tr>';
+            } else {
+                // Sort sales by date, newest first
+                const sortedSales = [...sales].sort((a, b) => new Date(b.date) - new Date(a.date));
+                
+                sortedSales.forEach(sale => {
+                    totalSales += sale.totalPrice;
+                    totalProfit += sale.profit;
+                    
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${formatDate(sale.date)}</td>
+                        <td>${sale.medicineName}</td>
+                        <td>${sale.customerName}</td>
+                        <td>${sale.quantity}</td>
+                        <td>₹${sale.totalPrice.toFixed(2)}</td>
+                        <td class="${sale.profit >= 0 ? 'profit-positive' : 'profit-negative'}">₹${sale.profit.toFixed(2)}</td>
+                    `;
+                    salesList.appendChild(row);
+                });
+            }
+            
+            document.getElementById('total-sales').textContent = `₹${totalSales.toFixed(2)}`;
+            document.getElementById('total-profit').textContent = `₹${totalProfit.toFixed(2)}`;
+            
+            document.getElementById('download-sales').addEventListener('click', () => {
+                const salesData = sales.map(sale => ({
+                    Date: formatDate(sale.date),
+                    Medicine: sale.medicineName,
+                    Customer: sale.customerName,
+                    Quantity: sale.quantity,
+                    'Unit Price': sale.unitPrice,
+                    'Total Price': sale.totalPrice,
+                    Profit: sale.profit
+                }));
+                
+                downloadCSV(salesData, 'sales_records.csv');
+            });
+            
+            operationModal.show();
+        }
+
+        function showTopSellingAnalysis() {
+            const modalTitle = document.getElementById('operationModalLabel');
+            const modalBody = document.getElementById('operationModalBody');
+            
+            modalTitle.textContent = 'Top Selling Medicines Analysis';
+            
+            if (sales.length === 0) {
+                modalBody.innerHTML = `
+                    <div class="alert alert-info">No sales data available for analysis.</div>
+                `;
+                operationModal.show();
+                return;
+            }
+            
+            // Aggregate sales data by medicine
+            const medicineSales = {};
+            sales.forEach(sale => {
+                if (!medicineSales[sale.medicineId]) {
+                    medicineSales[sale.medicineId] = {
+                        name: sale.medicineName,
+                        quantity: 0,
+                        revenue: 0,
+                        profit: 0
+                    };
+                }
+                medicineSales[sale.medicineId].quantity += sale.quantity;
+                medicineSales[sale.medicineId].revenue += sale.totalPrice;
+                medicineSales[sale.medicineId].profit += sale.profit;
+            });
+            
+            // Convert to array and sort by quantity
+            const topSellingByQuantity = Object.values(medicineSales)
+                .sort((a, b) => b.quantity - a.quantity);
+            
+            // Convert to array and sort by revenue
+            const topSellingByRevenue = Object.values(medicineSales)
+                .sort((a, b) => b.revenue - a.revenue);
+            
+            // Convert to array and sort by profit
+            const topSellingByProfit = Object.values(medicineSales)
+                .sort((a, b) => b.profit - a.profit);
+            
+            modalBody.innerHTML = `
+                <div class="row">
+                    <div class="col-md-6 mb-4">
+                        <div class="card">
+                            <div class="card-header">Top Medicines by Quantity Sold</div>
+                            <div class="card-body">
+                                <canvas id="quantity-chart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-4">
+                        <div class="card">
+                            <div class="card-header">Top Medicines by Revenue</div>
+                            <div class="card-body">
+                                <canvas id="revenue-chart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="card">
+                            <div class="card-header">Detailed Sales Analysis</div>
+                            <div class="card-body">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>Rank</th>
+                                            <th>Medicine</th>
+                                            <th>Quantity Sold</th>
+                                            <th>Revenue</th>
+                                            <th>Profit</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="top-selling-list">
+                                        <!-- Top selling data will be populated here -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Populate the table
+            const topSellingList = document.getElementById('top-selling-list');
+            topSellingByQuantity.forEach((item, index) => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${index + 1}</td>
+                    <td>${item.name}</td>
+                    <td>${item.quantity}</td>
+                    <td>₹${item.revenue.toFixed(2)}</td>
+                    <td class="${item.profit >= 0 ? 'profit-positive' : 'profit-negative'}">₹${item.profit.toFixed(2)}</td>
+                `;
+                topSellingList.appendChild(row);
+            });
+            
+            // Create charts
+            const quantityChart = new Chart(document.getElementById('quantity-chart'), {
+                type: 'bar',
+                data: {
+                    labels: topSellingByQuantity.slice(0, 5).map(item => item.name),
+                    datasets: [{
+                        label: 'Quantity Sold',
+                        data: topSellingByQuantity.slice(0, 5).map(item => item.quantity),
+                        backgroundColor: 'rgba(54, 162, 235, 0.8)'
+                    }]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+            
+            const revenueChart = new Chart(document.getElementById('revenue-chart'), {
+                type: 'bar',
+                data: {
+                    labels: topSellingByRevenue.slice(0, 5).map(item => item.name),
+                    datasets: [{
+                        label: 'Revenue ($)',
+                        data: topSellingByRevenue.slice(0, 5).map(item => item.revenue),
+                        backgroundColor: 'rgba(75, 192, 192, 0.8)'
+                    }]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+            
+            operationModal.show();
+        }
+
+        function showStatistics() {
+            const modalTitle = document.getElementById('operationModalLabel');
+            const modalBody = document.getElementById('operationModalBody');
+            
+            modalTitle.textContent = 'Pharmacy Statistics';
+            
+            // Calculate statistics
+            const totalMedicines = medicines.length;
+            const totalStock = medicines.reduce((sum, medicine) => sum + medicine.stock, 0);
+            const lowStockItems = medicines.filter(medicine => medicine.stock < 50).length;
+            const stockValue = medicines.reduce((sum, medicine) => sum + (medicine.inventoryPrice * medicine.stock), 0);
+            
+            const totalSalesCount = sales.length;
+            const totalSalesRevenue = sales.reduce((sum, sale) => sum + sale.totalPrice, 0);
+            const totalSalesProfit = sales.reduce((sum, sale) => sum + sale.profit, 0);
+            
+            const profitMargin = totalSalesRevenue > 0 ? (totalSalesProfit / totalSalesRevenue) * 100 : 0;
+            
+            modalBody.innerHTML = `
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="card stat-card">
+                            <div class="card-body">
+                                <h5 class="card-title">Inventory</h5>
+                                <div class="stat-value">${totalMedicines}</div>
+                                <div>Total Medicines</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card stat-card">
+                            <div class="card-body">
+                                <h5 class="card-title">Stock</h5>
+                                <div class="stat-value">${totalStock}</div>
+                                <div>Total Items in Stock</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card stat-card">
+                            <div class="card-body">
+                                <h5 class="card-title">Low Stock</h5>
+                                <div class="stat-value">${lowStockItems}</div>
+                                <div>Items with Low Stock</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-md-4">
+                        <div class="card stat-card">
+                            <div class="card-body">
+                                <h5 class="card-title">Inventory Value</h5>
+                                <div class="stat-value">₹${stockValue.toFixed(2)}</div>
+                                <div>Total Stock Value</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card stat-card">
+                            <div class="card-body">
+                                <h5 class="card-title">Sales</h5>
+                                <div class="stat-value">₹${totalSalesRevenue.toFixed(2)}</div>
+                                <div>Total Sales Revenue</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card stat-card">
+                            <div class="card-body">
+                                <h5 class="card-title">Profit</h5>
+                                <div class="stat-value">₹${totalSalesProfit.toFixed(2)}</div>
+                                <div>Total Profit</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row mt-4">
+                    <div class="col-md-12">
+                        <div class="card">
+                            <div class="card-header">Sales Performance</div>
+                            <div class="card-body">
+                                <canvas id="sales-chart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // If we have sales data, create a chart
+            if (sales.length > 0) {
+                // Group sales by date
+                const salesByDate = {};
+                sales.forEach(sale => {
+                    const date = sale.date.split('T')[0]; // Get only the date part
+                    if (!salesByDate[date]) {
+                        salesByDate[date] = {
+                            revenue: 0,
+                            profit: 0
+                        };
+                    }
+                    salesByDate[date].revenue += sale.totalPrice;
+                    salesByDate[date].profit += sale.profit;
+                });
+                
+                // Convert to arrays for chart
+                const dates = Object.keys(salesByDate).sort();
+                const revenues = dates.map(date => salesByDate[date].revenue);
+                const profits = dates.map(date => salesByDate[date].profit);
+                
+                // Create chart
+                const salesChart = new Chart(document.getElementById('sales-chart'), {
+                    type: 'line',
+                    data: {
+                        labels: dates,
+                        datasets: [
+                            {
+                                label: 'Revenue',
+                                data: revenues,
+                                borderColor: 'rgba(54, 162, 235, 1)',
+                                backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                                tension: 0.1,
+                                fill: true
+                            },
+                            {
+                                label: 'Profit',
+                                data: profits,
+                                borderColor: 'rgba(75, 192, 192, 1)',
+                                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                                tension: 0.1,
+                                fill: true
+                            }
+                        ]
+                    },
+                    options: {
+                        scales: {
+                            y: {
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+            } else {
+                document.getElementById('sales-chart').parentElement.innerHTML = `
+                    <div class="alert alert-info">No sales data available for charts.</div>
+                `;
+            }
+            
+            operationModal.show();
+        }
+
+        function showExpirationManagement() {
+            const modalTitle = document.getElementById('operationModalLabel');
+            const modalBody = document.getElementById('operationModalBody');
+            
+            modalTitle.textContent = 'Expiration Date Management';
+            modalBody.innerHTML = `
+                <div class="d-flex justify-content-between mb-3">
+                    <h5>Medicines Expiration Tracking</h5>
+                    <button id="download-expiration" class="btn btn-success">Download as CSV</button>
+                </div>
+                
+                <form id="add-expiration-form" class="mb-4">
+                    <div class="card">
+                        <div class="card-header">Add Expiration Data</div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="mb-3">
+                                        <label for="exp-medicine-select" class="form-label">Medicine</label>
+                                        <select class="form-select" id="exp-medicine-select" required>
+                                            <option value="">Select medicine...</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="mb-3">
+                                        <label for="batch-number" class="form-label">Batch Number</label>
+                                        <input type="text" class="form-control" id="batch-number" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="mb-3">
+                                        <label for="expiration-date" class="form-label">Expiration Date</label>
+                                        <input type="date" class="form-control" id="expiration-date" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <div class="mb-3">
+                                        <label for="exp-quantity" class="form-label">Quantity</label>
+                                        <input type="number" class="form-control" id="exp-quantity" required>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-primary">Add Batch</button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+                
+                <div class="card">
+                    <div class="card-header">
+                        <ul class="nav nav-tabs card-header-tabs" id="expiration-tabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="expiring-soon-tab" data-bs-toggle="tab" data-bs-target="#expiring-soon-content" type="button" role="tab">Expiring Soon</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="all-batches-tab" data-bs-toggle="tab" data-bs-target="#all-batches-content" type="button" role="tab">All Batches</button>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="card-body">
+                        <div class="tab-content" id="expiration-tab-content">
+                            <div class="tab-pane fade show active" id="expiring-soon-content" role="tabpanel">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>Medicine</th>
+                                            <th>Batch Number</th>
+                                            <th>Expiration Date</th>
+                                            <th>Days Left</th>
+                                            <th>Quantity</th>
+                                            <th>Status</th>
+                                            <th>Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="expiring-soon-list">
+                                        <!-- Will be populated with JS -->
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="tab-pane fade" id="all-batches-content" role="tabpanel">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>Medicine</th>
+                                            <th>Batch Number</th>
+                                            <th>Expiration Date</th>
+                                            <th>Days Left</th>
+                                            <th>Quantity</th>
+                                            <th>Status</th>
+                                            <th>Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="all-batches-list">
+                                        <!-- Will be populated with JS -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Sample expiration data - in real app, this would be stored in a database
+            if (!window.expirationData) {
+                window.expirationData = [
+                    {
+                        id: 1,
+                        medicineId: 1,
+                        batchNumber: 'P2023-001',
+                        expirationDate: '2025-06-30',
+                        quantity: 40
+                    },
+                    {
+                        id: 2,
+                        medicineId: 2,
+                        batchNumber: 'I2023-002',
+                        expirationDate: '2025-04-15',
+                        quantity: 25
+                    },
+                    {
+                        id: 3,
+                        medicineId: 3,
+                        batchNumber: 'A2023-003',
+                        expirationDate: '2025-03-10',
+                        quantity: 15
+                    }
+                ];
+            }
+            
+            // Populate medicine select dropdown
+            const medicineSelect = document.getElementById('exp-medicine-select');
+            medicineSelect.innerHTML = '<option value="">Select medicine...</option>';
+            medicines.forEach(medicine => {
+                const option = document.createElement('option');
+                option.value = medicine.id;
+                option.textContent = medicine.name;
+                medicineSelect.appendChild(option);
+            });
+            
+            // Add event listener for the form
+            const form = document.getElementById('add-expiration-form');
+            form.addEventListener('submit', (e) => {
+                e.preventDefault();
+                
+                const medicineId = parseInt(document.getElementById('exp-medicine-select').value);
+                const batchNumber = document.getElementById('batch-number').value;
+                const expirationDate = document.getElementById('expiration-date').value;
+                const quantity = parseInt(document.getElementById('exp-quantity').value);
+                
+                const newBatch = {
+                    id: window.expirationData.length + 1,
+                    medicineId: medicineId,
+                    batchNumber: batchNumber,
+                    expirationDate: expirationDate,
+                    quantity: quantity
+                };
+                
+                window.expirationData.push(newBatch);
+                form.reset();
+                
+                // Refresh the tables
+                populateExpirationTables();
+                
+                // Show success message with toast
+                const toastContainer = document.createElement('div');
+                toastContainer.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+                toastContainer.innerHTML = `
+                    <div class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+                        <div class="toast-header bg-success text-white">
+                            <strong class="me-auto">Success</strong>
+                            <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+                        </div>
+                        <div class="toast-body">
+                            Batch added successfully!
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(toastContainer);
+                
+                const toastEl = toastContainer.querySelector('.toast');
+                const toast = new bootstrap.Toast(toastEl);
+                toast.show();
+                
+                // Remove toast after it's hidden
+                toastEl.addEventListener('hidden.bs.toast', () => {
+                    document.body.removeChild(toastContainer);
+                });
+            });
+            
+            // Function to populate expiration tables
+            function populateExpirationTables() {
+                const expiringSoonList = document.getElementById('expiring-soon-list');
+                const allBatchesList = document.getElementById('all-batches-list');
+                
+                expiringSoonList.innerHTML = '';
+                allBatchesList.innerHTML = '';
+                
+                const today = new Date();
+                const thirtyDaysFromNow = new Date();
+                thirtyDaysFromNow.setDate(today.getDate() + 30);
+                
+                window.expirationData.forEach(batch => {
+                    const medicine = medicines.find(m => m.id === batch.medicineId);
+                    if (!medicine) return;
+                    
+                    const expirationDate = new Date(batch.expirationDate);
+                    const daysLeft = Math.ceil((expirationDate - today) / (1000 * 60 * 60 * 24));
+                    
+                    let status = '';
+                    let statusClass = '';
+                    
+                    if (daysLeft < 0) {
+                        status = 'Expired';
+                        statusClass = 'text-danger';
+                    } else if (daysLeft <= 30) {
+                        status = 'Expiring Soon';
+                        statusClass = 'text-warning';
+                    } else {
+                        status = 'Valid';
+                        statusClass = 'text-success';
+                    }
+                    
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${medicine.name}</td>
+                        <td>${batch.batchNumber}</td>
+                        <td>${batch.expirationDate}</td>
+                        <td>${daysLeft < 0 ? 'Expired' : daysLeft}</td>
+                        <td>${batch.quantity}</td>
+                        <td class="${statusClass}">${status}</td>
+                        <td>
+                            <button class="btn btn-sm btn-danger remove-batch" data-id="${batch.id}">
+                                Remove
+                            </button>
+                        </td>
+                    `;
+                    
+                    // Add to all batches list
+                    allBatchesList.appendChild(row.cloneNode(true));
+                    
+                    // Add to expiring soon if applicable
+                    if (daysLeft <= 30) {
+                        expiringSoonList.appendChild(row);
+                    }
+                });
+                
+                // Handle empty states
+                if (expiringSoonList.children.length === 0) {
+                    expiringSoonList.innerHTML = `
+                        <tr>
+                            <td colspan="7" class="text-center">No medicines expiring soon.</td>
+                        </tr>
+                    `;
+                }
+                
+                if (allBatchesList.children.length === 0) {
+                    allBatchesList.innerHTML = `
+                        <tr>
+                            <td colspan="7" class="text-center">No batch data available.</td>
+                        </tr>
+                    `;
+                }
+                
+                // Add event listeners for remove buttons
+                document.querySelectorAll('.remove-batch').forEach(button => {
+                    button.addEventListener('click', (e) => {
+                        const batchId = parseInt(e.target.dataset.id);
+                        window.expirationData = window.expirationData.filter(batch => batch.id !== batchId);
+                        populateExpirationTables();
+                    });
+                });
+            }
+            
+            // Initial population of tables
+            populateExpirationTables();
+            
+            // Download button functionality
+            document.getElementById('download-expiration').addEventListener('click', () => {
+                const today = new Date();
+                const exportData = window.expirationData.map(batch => {
+                    const medicine = medicines.find(m => m.id === batch.medicineId);
+                    const expirationDate = new Date(batch.expirationDate);
+                    const daysLeft = Math.ceil((expirationDate - today) / (1000 * 60 * 60 * 24));
+                    
+                    let status = '';
+                    if (daysLeft < 0) {
+                        status = 'Expired';
+                    } else if (daysLeft <= 30) {
+                        status = 'Expiring Soon';
+                    } else {
+                        status = 'Valid';
+                    }
+                    
+                    return {
+                        'Medicine': medicine ? medicine.name : 'Unknown',
+                        'Batch Number': batch.batchNumber,
+                        'Expiration Date': batch.expirationDate,
+                        'Days Left': daysLeft < 0 ? 'Expired' : daysLeft,
+                        'Quantity': batch.quantity,
+                        'Status': status
+                    };
+                });
+                
+                downloadCSV(exportData, 'expiration_data.csv');
+            });
+            
+            operationModal.show();
+        }
+
+        function showSupplierManagement() {
+            const modalTitle = document.getElementById('operationModalLabel');
+            const modalBody = document.getElementById('operationModalBody');
+            
+            modalTitle.textContent = 'Supplier Management';
+            modalBody.innerHTML = `
+                <div class="card mb-4">
+                    <div class="card-header">Add New Supplier</div>
+                    <div class="card-body">
+                        <form id="add-supplier-form">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="supplier-name" class="form-label">Supplier Name</label>
+                                        <input type="text" class="form-control" id="supplier-name" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="supplier-contact" class="form-label">Contact Person</label>
+                                        <input type="text" class="form-control" id="supplier-contact" required>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="supplier-email" class="form-label">Email</label>
+                                        <input type="email" class="form-control" id="supplier-email" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="supplier-phone" class="form-label">Phone</label>
+                                        <input type="tel" class="form-control" id="supplier-phone" required>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="supplier-address" class="form-label">Address</label>
+                                <textarea class="form-control" id="supplier-address" rows="2" required></textarea>
+                            </div>
+                            <div class="d-flex justify-content-end">
+                                <button type="submit" class="btn btn-primary">Add Supplier</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span>Suppliers List</span>
+                            <div class="input-group" style="width: 300px;">
+                                <input type="text" class="form-control" id="supplier-search" placeholder="Search suppliers...">
+                                <button class="btn btn-outline-secondary" type="button" id="search-button">
+                                    <i class="bi bi-search"></i> Search
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Contact Person</th>
+                                        <th>Email</th>
+                                        <th>Phone</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="suppliers-list">
+                                    <!-- Will be populated with JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Sample suppliers data - in real app, this would be stored in a database
+            if (!window.suppliers) {
+                window.suppliers = [
+                    {
+                        id: 1,
+                        name: 'MediPharm Distributors',
+                        contactPerson: 'John Smith',
+                        email: 'john@medipharm.com',
+                        phone: '555-123-4567',
+                        address: '123 Healthcare Blvd, Pharma City, PC 12345'
+                    },
+                    {
+                        id: 2,
+                        name: 'Global Pharmaceutical Supply',
+                        contactPerson: 'Sarah Johnson',
+                        email: 'sarah@globalpharm.com',
+                        phone: '555-987-6543',
+                        address: '456 Medicine Road, Health Town, HT 67890'
+                    }
+                ];
+            }
+            
+            // Function to populate suppliers table
+            function populateSuppliers(suppliers) {
+                const suppliersList = document.getElementById('suppliers-list');
+                suppliersList.innerHTML = '';
+                
+                if (suppliers.length === 0) {
+                    suppliersList.innerHTML = `
+                        <tr>
+                            <td colspan="5" class="text-center">No suppliers found.</td>
+                        </tr>
+                    `;
+                    return;
+                }
+                
+                suppliers.forEach(supplier => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${supplier.name}</td>
+                        <td>${supplier.contactPerson}</td>
+                        <td>${supplier.email}</td>
+                        <td>${supplier.phone}</td>
+                        <td>
+                            <button class="btn btn-sm btn-info view-supplier" data-id="${supplier.id}">
+                                View
+                            </button>
+                            <button class="btn btn-sm btn-danger delete-supplier" data-id="${supplier.id}">
+                                Delete
+                            </button>
+                        </td>
+                    `;
+                    suppliersList.appendChild(row);
+                });
+                
+                // Add event listeners for buttons
+                document.querySelectorAll('.view-supplier').forEach(button => {
+                    button.addEventListener('click', (e) => {
+                        const supplierId = parseInt(e.target.dataset.id);
+                        const supplier = window.suppliers.find(s => s.id === supplierId);
+                        
+                        if (supplier) {
+                            const viewModal = new bootstrap.Modal(document.getElementById('supplierViewModal') || createSupplierViewModal());
+                            document.getElementById('view-supplier-name').textContent = supplier.name;
+                            document.getElementById('view-supplier-contact').textContent = supplier.contactPerson;
+                            document.getElementById('view-supplier-email').textContent = supplier.email;
+                            document.getElementById('view-supplier-phone').textContent = supplier.phone;
+                            document.getElementById('view-supplier-address').textContent = supplier.address;
+                            viewModal.show();
+                        }
+                    });
+                });
+                
+                document.querySelectorAll('.delete-supplier').forEach(button => {
+                    button.addEventListener('click', (e) => {
+                        if (confirm('Are you sure you want to delete this supplier?')) {
+                            const supplierId = parseInt(e.target.dataset.id);
+                            window.suppliers = window.suppliers.filter(s => s.id !== supplierId);
+                            populateSuppliers(window.suppliers);
+                        }
+                    });
+                });
+            }
+            
+            // Create supplier view modal if it doesn't exist
+            function createSupplierViewModal() {
+                const modalDiv = document.createElement('div');
+                modalDiv.className = 'modal fade';
+                modalDiv.id = 'supplierViewModal';
+                modalDiv.tabIndex = '-1';
+                modalDiv.innerHTML = `
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Supplier Details</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="mb-3">
+                                    <strong>Name:</strong>
+                                    <p id="view-supplier-name"></p>
+                                </div>
+                                <div class="mb-3">
+                                    <strong>Contact Person:</strong>
+                                    <p id="view-supplier-contact"></p>
+                                </div>
+                                <div class="mb-3">
+                                    <strong>Email:</strong>
+                                    <p id="view-supplier-email"></p>
+                                </div>
+                                <div class="mb-3">
+                                    <strong>Phone:</strong>
+                                    <p id="view-supplier-phone"></p>
+                                </div>
+                                <div class="mb-3">
+                                    <strong>Address:</strong>
+                                    <p id="view-supplier-address"></p>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(modalDiv);
+                return modalDiv;
+            }
+            
+            // Form submission handler
+            const addSupplierForm = document.getElementById('add-supplier-form');
+            addSupplierForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                
+                const newSupplier = {
+                    id: window.suppliers.length + 1,
+                    name: document.getElementById('supplier-name').value,
+                    contactPerson: document.getElementById('supplier-contact').value,
+                    email: document.getElementById('supplier-email').value,
+                    phone: document.getElementById('supplier-phone').value,
+                    address: document.getElementById('supplier-address').value
+                };
+                
+                window.suppliers.push(newSupplier);
+                addSupplierForm.reset();
+                populateSuppliers(window.suppliers);
+            });
+            
+            // Search functionality
+            const searchInput = document.getElementById('supplier-search');
+            const searchButton = document.getElementById('search-button');
+            
+            function handleSearch() {
+                const searchTerm = searchInput.value.toLowerCase();
+                if (!searchTerm) {
+                    populateSuppliers(window.suppliers);
+                    return;
+                }
+                
+                const filteredSuppliers = window.suppliers.filter(supplier => 
+                    supplier.name.toLowerCase().includes(searchTerm) ||
+                    supplier.contactPerson.toLowerCase().includes(searchTerm) ||
+                    supplier.email.toLowerCase().includes(searchTerm) ||
+                    supplier.phone.includes(searchTerm)
+                );
+                
+                populateSuppliers(filteredSuppliers);
+            }
+            
+            searchButton.addEventListener('click', handleSearch);
+            searchInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleSearch();
+                }
+            });
+            
+            // Initial population of suppliers
+            populateSuppliers(window.suppliers);
+            
+            operationModal.show();
+        }
+
+        function showPrescriptionManagement() {
+            const modalTitle = document.getElementById('operationModalLabel');
+            const modalBody = document.getElementById('operationModalBody');
+            
+            modalTitle.textContent = 'Prescription Management';
+            modalBody.innerHTML = `
+                <div class="card mb-4">
+                    <div class="card-header">Record New Prescription</div>
+                    <div class="card-body">
+                        <form id="add-prescription-form">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="patient-name" class="form-label">Patient Name</label>
+                                        <input type="text" class="form-control" id="patient-name" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="doctor-name" class="form-label">Doctor Name</label>
+                                        <input type="text" class="form-control" id="doctor-name" required>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="prescription-date" class="form-label">Date</label>
+                                        <input type="date" class="form-control" id="prescription-date" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="prescription-id" class="form-label">Prescription ID</label>
+                                        <input type="text" class="form-control" id="prescription-id" required>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="card mb-3">
+                                <div class="card-header">Prescribed Medicines</div>
+                                <div class="card-body">
+                                    <div id="prescription-medicines">
+                                        <div class="prescription-medicine-entry row mb-2">
+                                            <div class="col-md-5">
+                                                <select class="form-select medicine-select" required>
+                                                    <option value="">Select medicine...</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <input type="number" class="form-control" placeholder="Quantity" required>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <input type="text" class="form-control" placeholder="Dosage" required>
+                                            </div>
+                                            <div class="col-md-1">
+                                                <button type="button" class="btn btn-danger remove-medicine">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button type="button" class="btn btn-secondary mt-2" id="add-medicine-btn">
+                                        + Add Medicine
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="notes" class="form-label">Notes</label>
+                                <textarea class="form-control" id="notes" rows="2"></textarea>
+                            </div>
+                            
+                            <div class="d-flex justify-content-end">
+                                <button type="submit" class="btn btn-primary">Save Prescription</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">Recent Prescriptions</div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Prescription ID</th>
+                                        <th>Patient</th>
+                                        <th>Doctor</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="prescriptions-list">
+                                    <!-- Will be populated with JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Sample prescriptions data - in real app, this would be stored in a database
+            if (!window.prescriptions) {
+                window.prescriptions = [
+                    {
+                        id: 1,
+                        prescriptionId: 'RX-2023-001',
+                        patientName: 'Jane Doe',
+                        doctorName: 'Dr. Sarah Smith',
+                        date: '2023-11-15',
+                        status: 'Filled',
+                        notes: 'Take with food',
+                        medicines: [
+                            { medicineId: 1, quantity: 30, dosage: '1 tablet twice daily' },
+                            { medicineId: 2, quantity: 15, dosage: '1 tablet as needed for pain' }
+                        ]
+                    },
+                    {
+                        id: 2,
+                        prescriptionId: 'RX-2023-002',
+                        patientName: 'John Smith',
+                        doctorName: 'Dr. Michael Johnson',
+                        date: '2023-11-20',
+                        status: 'Pending',
+                        notes: 'Patient is allergic to penicillin',
+                        medicines: [
+                            { medicineId: 3, quantity: 20, dosage: '1 capsule three times daily after meals' }
+                        ]
+                    }
+                ];
+            }
+            
+            // Populate medicine selects
+            function populateMedicineSelects() {
+                document.querySelectorAll('.medicine-select').forEach(select => {
+                    // Only populate if not already populated
+                    if (select.options.length <= 1) {
+                        medicines.forEach(medicine => {
+                            const option = document.createElement('option');
+                            option.value = medicine.id;
+                            option.textContent = medicine.name;
+                            select.appendChild(option);
+                        });
+                    }
+                });
+            }
+            
+            // Initial medicine select population
+            populateMedicineSelects();
+            
+            // Add medicine button functionality
+            document.getElementById('add-medicine-btn').addEventListener('click', () => {
+                const prescriptionMedicines = document.getElementById('prescription-medicines');
+                const newEntry = document.createElement('div');
+                newEntry.className = 'prescription-medicine-entry row mb-2';
+                newEntry.innerHTML = `
+                    <div class="col-md-5">
+                        <select class="form-select medicine-select" required>
+                            <option value="">Select medicine...</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <input type="number" class="form-control" placeholder="Quantity" required>
+                    </div>
+                    <div class="col-md-3">
+                        <input type="text" class="form-control" placeholder="Dosage" required>
+                    </div>
+                    <div class="col-md-1">
+                        <button type="button" class="btn btn-danger remove-medicine">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                `;
+                
+                prescriptionMedicines.appendChild(newEntry);
+                populateMedicineSelects(); // Populate the new select
+                
+                // Add event listener to the new remove button
+                newEntry.querySelector('.remove-medicine').addEventListener('click', () => {
+                    prescriptionMedicines.removeChild(newEntry);
+                });
+            });
+            
+            // Add event listener to the initial remove button
+            document.querySelector('.remove-medicine').addEventListener('click', (e) => {
+                const entry = e.target.closest('.prescription-medicine-entry');
+                // Only remove if there's more than one entry
+                if (document.querySelectorAll('.prescription-medicine-entry').length > 1) {
+                    entry.parentNode.removeChild(entry);
+                } else {
+                    alert('At least one medicine is required');
+                }
+            });
+            
+            // Form submission handler
+            const addPrescriptionForm = document.getElementById('add-prescription-form');
+            addPrescriptionForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                
+                // Collect medicines
+                const medicines = [];
+                document.querySelectorAll('.prescription-medicine-entry').forEach(entry => {
+                    const medicineId = parseInt(entry.querySelector('.medicine-select').value);
+                    const quantity = parseInt(entry.querySelector('input[type="number"]').value);
+                    const dosage = entry.querySelector('input[type="text"]').value;
+                    
+                    if (medicineId && quantity && dosage) {
+                        medicines.push({ medicineId, quantity, dosage });
+                    }
+                });
+                
+                if (medicines.length === 0) {
+                    alert('Please add at least one medicine');
+                    return;
+                }
+                
+                const newPrescription = {
+                    id: window.prescriptions.length + 1,
+                    prescriptionId: document.getElementById('prescription-id').value,
+                    patientName: document.getElementById('patient-name').value,
+                    doctorName: document.getElementById('doctor-name').value,
+                    date: document.getElementById('prescription-date').value,
+                    status: 'Pending',
+                    notes: document.getElementById('notes').value,
+                    medicines: medicines
+                };
+                
+                window.prescriptions.push(newPrescription);
+                addPrescriptionForm.reset();
+                populatePrescriptions();
+            });
+            
+            // Function to populate prescriptions table
+            function populatePrescriptions() {
+                const prescriptionsList = document.getElementById('prescriptions-list');
+                prescriptionsList.innerHTML = '';
+                
+                if (window.prescriptions.length === 0) {
+                    prescriptionsList.innerHTML = `
+                        <tr>
+                            <td colspan="6" class="text-center">No prescriptions found.</td>
+                        </tr>
+                    `;
+                    return;
+                }
+                
+                window.prescriptions.forEach(prescription => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${prescription.date}</td>
+                        <td>${prescription.prescriptionId}</td>
+                        <td>${prescription.patientName}</td>
+                        <td>${prescription.doctorName}</td>
+                        <td>${prescription.status}</td>
+                        <td>
+                            <button class="btn btn-sm btn-info view-prescription" data-id="${prescription.id}">
+                                View
+                            </button>
+                            <button class="btn btn-sm btn-danger delete-prescription" data-id="${prescription.id}">
+                                Delete
+                            </button>
+                        </td>
+                    `;
+                    prescriptionsList.appendChild(row);
+                });
+                
+                // Add event listeners for buttons
+                document.querySelectorAll('.view-prescription').forEach(button => {
+                    button.addEventListener('click', (e) => {
+                        const prescriptionId = parseInt(e.target.dataset.id);
+                        const prescription = window.prescriptions.find(p => p.id === prescriptionId);
+                        
+                        if (prescription) {
+                            const viewModal = new bootstrap.Modal(document.getElementById('prescriptionViewModal') || createPrescriptionViewModal());
+                            document.getElementById('view-prescription-id').textContent = prescription.prescriptionId;
+                            document.getElementById('view-patient-name').textContent = prescription.patientName;
+                            document.getElementById('view-doctor-name').textContent = prescription.doctorName;
+                            document.getElementById('view-prescription-date').textContent = prescription.date;
+                            document.getElementById('view-prescription-status').textContent = prescription.status;
+                            document.getElementById('view-prescription-notes').textContent = prescription.notes;
+                            
+                            const medicinesList = document.getElementById('view-prescription-medicines');
+                            medicinesList.innerHTML = '';
+                            prescription.medicines.forEach(medicine => {
+                                const medicineName = medicines.find(m => m.id === medicine.medicineId)?.name || 'Unknown';
+                                const row = document.createElement('tr');
+                                row.innerHTML = `
+                                    <td>${medicineName}</td>
+                                    <td>${medicine.quantity}</td>
+                                    <td>${medicine.dosage}</td>
+                                `;
+                                medicinesList.appendChild(row);
+                            });
+                            
+                            viewModal.show();
+                        }
+                    });
+                });
+                
+                document.querySelectorAll('.delete-prescription').forEach(button => {
+                    button.addEventListener('click', (e) => {
+                        if (confirm('Are you sure you want to delete this prescription?')) {
+                            const prescriptionId = parseInt(e.target.dataset.id);
+                            window.prescriptions = window.prescriptions.filter(p => p.id !== prescriptionId);
+                            populatePrescriptions();
+                        }
+                    });
+                });
+            }
+            
+            // Create prescription view modal if it doesn't exist
+            function createPrescriptionViewModal() {
+                const modalDiv = document.createElement('div');
+                modalDiv.className = 'modal fade';
+                modalDiv.id = 'prescriptionViewModal';
+                modalDiv.tabIndex = '-1';
+                modalDiv.innerHTML = `
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Prescription Details</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="mb-3">
+                                    <strong>Prescription ID:</strong>
+                                    <p id="view-prescription-id"></p>
+                                </div>
+                                <div class="mb-3">
+                                    <strong>Patient Name:</strong>
+                                    <p id="view-patient-name"></p>
+                                </div>
+                                <div class="mb-3">
+                                    <strong>Doctor Name:</strong>
+                                    <p id="view-doctor-name"></p>
+                                </div>
+                                <div class="mb-3">
+                                    <strong>Date:</strong>
+                                    <p id="view-prescription-date"></p>
+                                </div>
+                                <div class="mb-3">
+                                    <strong>Status:</strong>
+                                    <p id="view-prescription-status"></p>
+                                </div>
+                                <div class="mb-3">
+                                    <strong>Notes:</strong>
+                                    <p id="view-prescription-notes"></p>
+                                </div>
+                                <div class="mb-3">
+                                    <strong>Medicines:</strong>
+                                    <table class="table table-striped">
+                                        <thead>
+                                            <tr>
+                                                <th>Medicine</th>
+                                                <th>Quantity</th>
+                                                <th>Dosage</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="view-prescription-medicines">
+                                            <!-- Will be populated with JS -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(modalDiv);
+                return modalDiv;
+            }
+            
+            // Initial population of prescriptions
+            populatePrescriptions();
+            
+            operationModal.show();
+        }
+    </script>
+</body>
+</html>
