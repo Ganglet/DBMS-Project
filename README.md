@@ -53,55 +53,55 @@ PHARMACY_MANAGEMENT_SYSTEM/
 │
 ├── public/
 │   ├── add/
-│   │   └── add-medicine.php        # Form to add new medicines to inventory
+│   │   └── add-medicine.php
 │   ├── api/
-│   │   └── get_statistics.php      # API endpoint for dashboard statistics (JSON)
+│   │   └── get_statistics.php
 │   ├── check/
-│   │   └── check-stock.php         # Real-time medicine stock level checker
+│   │   └── check-stock.php
 │   ├── config/
-│   │   ├── alter_medicines_table.sql   # DB schema modifications
-│   │   ├── create_tables.sql       # Initial database setup script
-│   │   ├── database.php            # Database connection handler
-│   │   ├── database.sql            # Full database dump
-│   │   ├── setup_database.php      # Installation wizard
-│   │   └── update_medicines_table.php # Schema migration script
+│   │   ├── alter_medicines_table.sql
+│   │   ├── create_tables.sql
+│   │   ├── database.php
+│   │   ├── database.sql
+│   │   ├── setup_database.php
+│   │   └── update_medicines_table.php
 │   ├── dashboard/
-│   │   ├── dashboard.php           # Admin dashboard with analytics
-│   │   └── staff_dashboard.html    # Staff view with limited permissions
+│   │   ├── dashboard.php
+│   │   └── staff_dashboard.html
 │   ├── expiration/
-│   │   └── expiration-management.php # Tracks and alerts for expiring medicines
+│   │   └── expiration-management.php
 │   ├── inventory/
-│   │   ├── check_stock.php         # Detailed inventory status report
-│   │   ├── inventory_report.php    # Exportable inventory PDF/Excel reports
-│   │   └── update_stock.php        # Bulk stock update interface
+│   │   ├── check_stock.php
+│   │   ├── inventory_report.php
+│   │   └── update_stock.php
 │   ├── models/
-│   │   ├── inventory.php           # Inventory CRUD operations
-│   │   ├── Medicine.php            # Medicine entity and business logic
-│   │   ├── Prescription.php        # Prescription processing module
-│   │   ├── Sale.php                # Sales transaction handler
-│   │   ├── Supplier.php            # Supplier management class
-│   │   └── User.php                # Authentication and user management
+│   │   ├── inventory.php
+│   │   ├── Medicine.php
+│   │   ├── Prescription.php
+│   │   ├── Sale.php
+│   │   ├── Supplier.php
+│   │   └── User.php
 │   ├── prescription/
-│   │   └── prescription-management.php # Digital prescription processing system
+│   │   └── prescription-management.php
 │   ├── sales/
-│   │   ├── sales_records.php       # Complete sales history with filters
-│   │   └── sell_medicine.php       # Point-of-sale transaction interface
+│   │   ├── sales_records.php
+│   │   └── sell_medicine.php
 │   ├── statistics/
-│   │   └── statistics.php          # Sales/Inventory trend visualizations
+│   │   └── statistics.php
 │   ├── supplier/
-│   │   └── supplier-management.php # Vendor database with order tracking
+│   │   └── supplier-management.php
 │   ├── top_sales/
-│   │   └── top-selling.php         # Reports best-selling medications
+│   │   └── top-selling.php
 │   ├── update/
-│   │   └── update-stock.php        # Single medicine stock adjustment
-│   ├── database.php                # Main DB connection (legacy)
-│   ├── index.php                   # Landing page with login redirect
-│   ├── register.php                # New user registration
-│   ├── styles.css                  # Global stylesheet
-│   ├── test_api.php                # API development sandbox
-│   └── user.php                    # User profile management
+│   │   └── update-stock.php
+│   ├── database.php
+│   ├── index.php
+│   ├── register.php
+│   ├── styles.css
+│   ├── test_api.php
+│   └── user.php
 │
-└── README.md                       # System documentation
+└── README.md
 ```
 
 The project is primarily built with HTML, CSS, and PHP, and it uses MySQL as the backend database.
