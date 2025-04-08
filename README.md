@@ -1,4 +1,5 @@
-# Pharmacy Management System DBMS Project
+# Pharmacy Management System 
+# DBMS Project
 
 This project is a Database Management System (DBMS) application developed as part of an academic project by Angshuman, Zeeshan, and Rayyan. The system is designed to manage various aspects of a pharmacy’s operations—including inventory management, sales processing, prescription handling, and supplier administration.
 
