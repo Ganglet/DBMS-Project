@@ -49,29 +49,59 @@ This system serves as a practical demonstration of applying DBMS concepts in a w
 The repository is organized into several key directories and files:
 
 ```
-DBMS-Project/
-├── Pharma/                    
-│   ├── add-medicine.html         # Form to add new medicines
-│   ├── check-stock.html          # Page to check current inventory levels
-│   ├── expiration-management.html# Manage expiration dates
-│   ├── index.html                # Home page for the pharmacy application
-│   ├── inventory-report.html     # Inventory report page
-│   ├── login.html                # User login page
-│   ├── prescription-management.html  # Prescription handling interface
-│   ├── sales-records.html        # Sales record page
-│   ├── sell-medicine.html        # Sales transaction page
-│   ├── staff_index.html          # Dashboard for staff usage
-│   ├── statistics.html           # Statistical data page
-│   ├── supplier-management.html  # Manage supplier information
-│   ├── top-selling.html          # Display top-selling products
-│   ├── update-stock.html         # Interface to update medicine stock
-│   └── styles.css                # Project CSS styling
+PHARMACY_MANAGEMENT_SYSTEM/
 │
-├── Pharma_new/                 
-│   └── public/                   # (Updated version or alternative UI can be found here)
-│       └── *(files similar to Pharma may reside here)*
+├── public/
+│   ├── add/
+│   │   └── add-medicine.php        # Form to add new medicines to inventory
+│   ├── api/
+│   │   └── get_statistics.php      # API endpoint for dashboard statistics (JSON)
+│   ├── check/
+│   │   └── check-stock.php         # Real-time medicine stock level checker
+│   ├── config/
+│   │   ├── alter_medicines_table.sql   # DB schema modifications
+│   │   ├── create_tables.sql       # Initial database setup script
+│   │   ├── database.php            # Database connection handler
+│   │   ├── database.sql            # Full database dump
+│   │   ├── setup_database.php      # Installation wizard
+│   │   └── update_medicines_table.php # Schema migration script
+│   ├── dashboard/
+│   │   ├── dashboard.php           # Admin dashboard with analytics
+│   │   └── staff_dashboard.html    # Staff view with limited permissions
+│   ├── expiration/
+│   │   └── expiration-management.php # Tracks and alerts for expiring medicines
+│   ├── inventory/
+│   │   ├── check_stock.php         # Detailed inventory status report
+│   │   ├── inventory_report.php    # Exportable inventory PDF/Excel reports
+│   │   └── update_stock.php        # Bulk stock update interface
+│   ├── models/
+│   │   ├── inventory.php           # Inventory CRUD operations
+│   │   ├── Medicine.php            # Medicine entity and business logic
+│   │   ├── Prescription.php        # Prescription processing module
+│   │   ├── Sale.php                # Sales transaction handler
+│   │   ├── Supplier.php            # Supplier management class
+│   │   └── User.php                # Authentication and user management
+│   ├── prescription/
+│   │   └── prescription-management.php # Digital prescription processing system
+│   ├── sales/
+│   │   ├── sales_records.php       # Complete sales history with filters
+│   │   └── sell_medicine.php       # Point-of-sale transaction interface
+│   ├── statistics/
+│   │   └── statistics.php          # Sales/Inventory trend visualizations
+│   ├── supplier/
+│   │   └── supplier-management.php # Vendor database with order tracking
+│   ├── top_sales/
+│   │   └── top-selling.php         # Reports best-selling medications
+│   ├── update/
+│   │   └── update-stock.php        # Single medicine stock adjustment
+│   ├── database.php                # Main DB connection (legacy)
+│   ├── index.php                   # Landing page with login redirect
+│   ├── register.php                # New user registration
+│   ├── styles.css                  # Global stylesheet
+│   ├── test_api.php                # API development sandbox
+│   └── user.php                    # User profile management
 │
-└── README.md                     # This documentation file
+└── README.md                       # System documentation
 ```
 
 The project is primarily built with HTML, CSS, and PHP, and it uses MySQL as the backend database.
