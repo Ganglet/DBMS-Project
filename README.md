@@ -12,7 +12,6 @@ This project is a Database Management System (DBMS) application developed as par
 - [Usage](#usage)
 - [Customization & Configuration](#customization--configuration)
 - [Contributing](#contributing)
-- [License](#license)
 - [Acknowledgements](#acknowledgements)
 
 ## Overview
