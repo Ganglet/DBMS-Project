@@ -1,7 +1,3 @@
-Below is an example of a comprehensive README.md file tailored to the project’s files and structure. You can adjust details (such as database configuration, screenshots, and further instructions) as needed.
-
----
-
 # Pharmacy Management System DBMS Project
 
 This project is a Database Management System (DBMS) application developed as part of an academic project by Angshuman, Zeeshan, and Rayyan. The system is designed to manage various aspects of a pharmacy’s operations—including inventory management, sales processing, prescription handling, and supplier administration.
@@ -134,19 +130,7 @@ Contributions are welcome. If you wish to enhance the project by adding new feat
 3. Commit your changes and push to your branch.
 4. Open a pull request with a detailed description of your changes.
 
-## License
-
-Distributed under the MIT License. See the [LICENSE](LICENSE) file for more information.
-
 ## Acknowledgements
 
 - **Project Contributors:** Angshuman, Zeeshan, Rayyan.
 - **Inspiration:** This project demonstrates how DBMS concepts can be applied in a real-world setting, combining web technologies with database management.
-
----
-
-*This README is generated based on the structure and files present in the repository. For further details, please review the source code and in-code comments.*
-
----
-
-You can copy this text into a new `README.md` file at the root of your repository. This should provide clear guidance for anyone looking to understand, set up, or contribute to the project.
